@@ -1,20 +1,39 @@
 import numpy as np
-from sklearn import preprocessing
+import tensorflow as tf
+from functions import *
 
-# loading raw dataset
-raw_csv_data = np.loadtxt('Audiobooks_data.csv', delimiter=',')
-unscaled_inputs_all = raw_csv_data[:,1:-1]
-targets_all = raw_csv_data[:,-1]
+# preprocessing_and_storing_data()
 
-# balancing dataset
-number_of_one_targets = int(np.sum(targets_all))
-number_of_zero_targets = 0
-indexes_to_remove = []
-for i in range(len(targets_all)):
-    if targets_all[i] == 0:
-        number_of_one_targets += 1
-        if number_of_zero_targets > number_of_one_targets:
-            indexes_to_remove.append(i)
-unscaled_inputs_equal_priors = np.delete(unscaled_inputs_all, indexes_to_remove, axis=0)
-targets_equal_priors = np.delete(targets_all, indexes_to_remove, axis=0)
+# load data
+npz = np.load('Audiobooks_data_train.npz')
+train_inputs, train_targets = npz['inputs'].astype(np.float), npz['targets'].astype(np.int)
+npz = np.load('Audiobooks_data_validation.npz')
+validation_inputs, validation_targets = npz['inputs'].astype(np.float), npz['targets'].astype(np.int)
+npz = np.load('Audiobooks_data_test.npz')
+test_inputs, test_targets = npz['inputs'].astype(np.float), npz['targets'].astype(np.int)
 
+# defining model
+input_size = train_inputs.shape[1]
+output_size = 2
+hidden_layer_size = 50
+model = tf.keras.Sequential([
+                            tf.keras.layers.Dense(hidden_layer_size, activation="relu"),
+                            tf.keras.layers.Dense(hidden_layer_size, activation="relu"),
+                            tf.keras.layers.Dense(output_size, activation="softmax")
+                            ])
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+# learning
+batch_size = 100
+epochs = 100
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=2)
+model.fit(train_inputs, train_targets,
+          batch_size=batch_size,
+          epochs=epochs,
+          callbacks=early_stopping,
+          validation_data=(validation_inputs, validation_targets),
+          verbose=2
+          )
+
+# testing
+model.evaluate(test_inputs, test_targets)
